@@ -1,11 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 import { Palette, Shadows, Typography } from '@/constants/ui';
+import { useCalendarRecords } from '@/contexts/calendar-context';
+import { useProfile } from '@/contexts/profile-context';
 
-const members = [
-  { id: 'me', name: '나', emoji: '😊' },
+const baseMembers = [
   { id: 'jimin', name: '지민', emoji: '🧑‍🎓' },
   { id: 'sejun', name: '서준', emoji: '👩‍💻' },
   { id: 'sua', name: '수아', emoji: '🧑‍🎨' },
@@ -13,39 +15,27 @@ const members = [
 ] as const;
 // 추후 백엔드 연동 후 DB 연결
 
-type MemberId = (typeof members)[number]['id'];
-type ReadingEntry = { date: string; title: string; note: string };
-
-const memberReadingData: Record<MemberId, ReadingEntry[]> = {
-  me: [
-    { date: '2026-01-03', title: '일구팔사', note: '1부 시작' },
-    { date: '2026-01-08', title: '일구팔사', note: '메모 공유' },
-    { date: '2026-01-19', title: '사피엔스', note: '2장 완료' },
-  ],
-  jimin: [
-    { date: '2026-01-05', title: '일구팔사', note: '밑줄 기록' },
-    { date: '2026-01-12', title: '위대한 개츠비', note: '토론 메모' },
-    { date: '2026-01-25', title: '사피엔스', note: '정리 완료' },
-  ],
-  sejun: [
-    { date: '2026-01-08', title: '일구팔사', note: '챕터 요약' },
-    { date: '2026-01-15', title: '사피엔스', note: '핵심 인사이트' },
-  ],
-  sua: [
-    { date: '2026-01-03', title: '위대한 개츠비', note: '감상 기록' },
-    { date: '2026-01-22', title: '사피엔스', note: '토론 준비' },
-  ],
-  minho: [
-    { date: '2026-01-12', title: '일구팔사', note: '중간 체크' },
-    { date: '2026-01-19', title: '위대한 개츠비', note: '감상문' },
-  ],
-};
-// 추후 백엔드 연동 후 DB 연결
+type MemberId = 'me' | (typeof baseMembers)[number]['id'];
+type Member = { id: MemberId; name: string; emoji: string };
 
 export default function CalendarScreen() {
+  const router = useRouter();
+  const { records } = useCalendarRecords();
+  const { profile } = useProfile();
   const [selectedMemberId, setSelectedMemberId] = useState<MemberId>('me');
   const [currentMonth, setCurrentMonth] = useState(new Date(2026, 0, 1));
   const [selectedDay, setSelectedDay] = useState<number | null>(3);
+  const members = useMemo<Member[]>(
+    () => [
+      {
+        id: 'me',
+        name: '나',
+        emoji: profile.emoji || (profile.nickname ? profile.nickname.slice(0, 1) : '😊'),
+      },
+      ...baseMembers,
+    ],
+    [profile.emoji, profile.nickname]
+  );
 
   const year = currentMonth.getFullYear();
   const monthIndex = currentMonth.getMonth();
@@ -63,24 +53,10 @@ export default function CalendarScreen() {
     return { key: `day-${dayNumber}`, day: dayNumber };
   });
 
-  const readingMap = useMemo(() => {
-    const entries = memberReadingData[selectedMemberId] ?? [];
-    const map = new Map<number, { title: string; note: string; count: number }>();
-    entries.forEach((entry: ReadingEntry) => {
-      const [entryYear, entryMonth, entryDay] = entry.date.split('-').map(Number);
-      if (entryYear === year && entryMonth === monthIndex + 1) {
-        const existing = map.get(entryDay);
-        if (existing) {
-          map.set(entryDay, { ...existing, count: existing.count + 1 });
-        } else {
-          map.set(entryDay, { title: entry.title, note: entry.note, count: 1 });
-        }
-      }
-    });
-    return map;
-  }, [selectedMemberId, year, monthIndex]);
-
-  const selectedEntry = selectedDay ? readingMap.get(selectedDay) : null;
+  const selectedDateKey = selectedDay
+    ? `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`
+    : null;
+  const selectedEntry = selectedDateKey ? records[selectedDateKey] : null;
   const monthLabel = `${year}년 ${monthIndex + 1}월`;
 
   const moveMonth = (direction: 'prev' | 'next') => {
@@ -89,12 +65,32 @@ export default function CalendarScreen() {
     setSelectedDay(null);
   };
 
-  const readingCount = readingMap.size;
+  const readingCount = useMemo(() => {
+    const monthPrefix = `${year}-${String(monthIndex + 1).padStart(2, '0')}-`;
+    return Object.keys(records).filter((key) => key.startsWith(monthPrefix)).length;
+  }, [records, year, monthIndex]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <Text style={styles.headerTitle}>읽기 캘린더</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>읽기 캘린더</Text>
+          <Pressable
+            style={styles.addButton}
+            onPress={() => {
+              if (!selectedDay) {
+                Alert.alert('안내', '기록할 날짜를 먼저 선택해 주세요.');
+                return;
+              }
+              const dateKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(
+                selectedDay
+              ).padStart(2, '0')}`;
+              router.push({ pathname: '/add-record', params: { date: dateKey } });
+            }}
+            accessibilityRole="button">
+            <Text style={styles.addButtonText}>＋</Text>
+          </Pressable>
+        </View>
 
         <ScrollView
           horizontal
@@ -155,7 +151,10 @@ export default function CalendarScreen() {
             if (!cell.day) {
               return <View key={cell.key} style={styles.dayCell} pointerEvents="none" />;
             }
-            const entry = readingMap.get(cell.day);
+            const dateKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(
+              cell.day
+            ).padStart(2, '0')}`;
+            const entry = records[dateKey];
             const isSelected = cell.day === selectedDay;
             const isToday = todayDate === cell.day;
             return (
@@ -188,14 +187,7 @@ export default function CalendarScreen() {
                 </View>
                 <View style={styles.dayContent}>
                   {entry ? (
-                    <View style={styles.readingBadge}>
-                      <View style={styles.readingSlot}>
-                        <Text style={styles.readingSlotText} numberOfLines={2}>
-                          {entry.title}
-                        </Text>
-                      </View>
-                      {entry.count > 1 && <View style={styles.readingStack} />}
-                    </View>
+                    <Image source={entry.cover} style={styles.dayCover} />
                   ) : (
                     <View style={styles.emptyBadge} />
                   )}
@@ -251,11 +243,29 @@ const styles = StyleSheet.create({
     padding: 22,
     paddingBottom: 40,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 22,
+  },
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
     color: Palette.textPrimary,
-    marginBottom: 22,
+  },
+  addButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+  },
+  addButtonText: {
+    fontSize: 26,
+    color: Palette.textSecondary,
   },
   memberRow: {
     paddingVertical: 2,
@@ -309,15 +319,14 @@ const styles = StyleSheet.create({
   monthNavButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    backgroundColor: Palette.surface,
+    borderRadius: 0,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
   },
   monthNavText: {
-    fontSize: 18,
-    color: Palette.textSecondary,
-    fontWeight: '600',
+    fontSize: 22,
+    color: Palette.textTertiary,
+    fontWeight: '700',
   },
   monthTitle: {
     fontSize: 18,
@@ -392,33 +401,11 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.border,
     opacity: 0.6,
   },
-  readingBadge: {
-    alignItems: 'center',
-  },
-  readingSlot: {
-    width: 36,
-    minHeight: 28,
-    borderRadius: 8,
+  dayCover: {
+    width: 34,
+    height: 40,
+    borderRadius: 6,
     backgroundColor: Palette.surface,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-    paddingVertical: 3,
-  },
-  readingSlotText: {
-    fontSize: 8,
-    color: Palette.textSecondary,
-    textAlign: 'center',
-    lineHeight: 10,
-  },
-  readingStack: {
-    marginTop: 4,
-    width: 20,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Palette.accentSoft,
   },
   emptyBadge: {
     width: 20,
