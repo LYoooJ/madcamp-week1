@@ -52,7 +52,12 @@ export default function LoginScreen() {
 
         <View style={styles.helperRow}>
           <Text style={styles.helperText}>계정을 잊으셨나요?</Text>
-          <Text style={styles.helperLink}>비밀번호 재설정</Text>
+          <Pressable
+            onPress={() => router.push('/password-reset')}
+            accessibilityRole="button"
+            hitSlop={8}>
+            <Text style={styles.helperLink}>비밀번호 재설정</Text>
+          </Pressable>
         </View>
       </View>
     </SafeAreaView>

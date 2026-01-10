@@ -3,6 +3,7 @@ import React, { createContext, useContext, useMemo, useState } from 'react';
 type ProfileState = {
   nickname: string;
   password: string;
+  emoji: string;
 };
 
 type ProfileContextValue = {
@@ -16,6 +17,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<ProfileState>({
     nickname: '서윤',
     password: '',
+    emoji: '📚',
   });
 
   const updateProfile = (next: Partial<ProfileState>) => {

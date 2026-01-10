@@ -1,7 +1,14 @@
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 
 import { Palette, Shadows, Typography } from '@/constants/ui';
 import { useProfile } from '@/contexts/profile-context';
@@ -14,22 +21,132 @@ const profileSections = [
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile } = useProfile();
-  const avatarLabel = profile.nickname ? profile.nickname.slice(0, 1) : '?';
+  const { profile, updateProfile } = useProfile();
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const avatarLabel = profile.emoji || (profile.nickname ? profile.nickname.slice(0, 1) : '?');
+
+  const emojiCategories = useMemo(
+    () => [
+      {
+        title: '책',
+        items: [
+          '📚',
+          '📖',
+          '📘',
+          '📗',
+          '📕',
+          '📙',
+          '📓',
+          '📔',
+          '📒',
+          '📑',
+          '🗂️',
+          '📝',
+          '📃',
+          '📄',
+          '📜',
+        ],
+      },
+      {
+        title: '무드',
+        items: [
+          '😊',
+          '😄',
+          '😌',
+          '🤓',
+          '🧐',
+          '🥳',
+          '🤔',
+          '😴',
+          '😮',
+          '😅',
+          '😇',
+          '🥰',
+          '🙂',
+          '🙃',
+          '😎',
+        ],
+      },
+      {
+        title: '아이콘',
+        items: [
+          '✨',
+          '🌟',
+          '🌙',
+          '☀️',
+          '⭐️',
+          '🔥',
+          '💡',
+          '🎧',
+          '🎵',
+          '🎯',
+          '🧠',
+          '🧩',
+          '🕯️',
+          '🎈',
+          '🎁',
+        ],
+      },
+      {
+        title: '자연',
+        items: [
+          '🌿',
+          '🍀',
+          '🌸',
+          '🌼',
+          '🌻',
+          '🍃',
+          '🌲',
+          '🌵',
+          '🌈',
+          '🌊',
+          '⛰️',
+          '🍁',
+          '🍂',
+          '🌧️',
+          '❄️',
+        ],
+      },
+      {
+        title: '기록',
+        items: [
+          '🖊️',
+          '✒️',
+          '✏️',
+          '🗒️',
+          '📌',
+          '📎',
+          '📍',
+          '📅',
+          '🗓️',
+          '✅',
+          '📊',
+          '📈',
+          '🧾',
+          '🗃️',
+          '📏',
+        ],
+      },
+    ],
+    []
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>프로필</Text>
-          <Link href="/login" style={styles.loginLink}>
-            로그인
-          </Link>
         </View>
 
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
             <Text style={styles.avatarEmoji}>{avatarLabel}</Text>
+            <Pressable
+              style={styles.avatarEditButton}
+              onPress={() => setIsEmojiPickerOpen(true)}
+              accessibilityRole="button">
+              <Text style={styles.avatarEditIcon}>✏️</Text>
+            </Pressable>
           </View>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{profile.nickname}</Text>
@@ -55,6 +172,7 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>내 정보</Text>
           {profileSections.map((section) => {
             const isProfile = section.id === 'profile';
+            const isFriends = section.id === 'friends';
             return (
               <Pressable
                 key={section.id}
@@ -62,9 +180,13 @@ export default function ProfileScreen() {
                 onPress={() => {
                   if (isProfile) {
                     router.push('/profile-edit');
+                    return;
+                  }
+                  if (isFriends) {
+                    router.push('/friends');
                   }
                 }}
-                accessibilityRole={isProfile ? 'button' : undefined}>
+                accessibilityRole={isProfile || isFriends ? 'button' : undefined}>
                 <View>
                   <Text style={styles.sectionCardTitle}>{section.title}</Text>
                   <Text style={styles.sectionCardDetail}>{section.detail}</Text>
@@ -75,16 +197,62 @@ export default function ProfileScreen() {
           })}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>읽기 메모</Text>
-          <View style={styles.memoCard}>
-            <Text style={styles.memoTitle}>이번 주 목표</Text>
-            <Text style={styles.memoBody}>
-              토론 전에 2장까지 읽기, 인상 깊었던 문장 3개 기록하기.
-            </Text>
-          </View>
-        </View>
+        <Pressable
+          style={styles.logoutButton}
+          onPress={() => router.replace('/login')}
+          accessibilityRole="button">
+          <Text style={styles.logoutButtonText}>로그아웃</Text>
+        </Pressable>
       </ScrollView>
+
+      <Modal
+        visible={isEmojiPickerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsEmojiPickerOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setIsEmojiPickerOpen(false)}>
+          <Pressable style={styles.emojiSheet} onPress={() => {}} accessibilityRole="menu">
+            <SafeAreaView style={styles.emojiSheetContent} edges={['top', 'bottom']}>
+              <View style={styles.emojiHeader}>
+                <Pressable
+                  onPress={() => setIsEmojiPickerOpen(false)}
+                  style={styles.emojiBackButton}
+                  accessibilityRole="button">
+                  <Text style={styles.emojiBack}>뒤로</Text>
+                </Pressable>
+                <Text style={styles.emojiTitle}>이모티콘 변경</Text>
+                <View style={styles.emojiHeaderSpacer} />
+              </View>
+              <ScrollView
+                contentContainerStyle={styles.emojiScrollContent}
+                showsVerticalScrollIndicator={false}>
+                {emojiCategories.map((category) => (
+                  <View key={category.title} style={styles.emojiSection}>
+                    <Text style={styles.emojiSectionTitle}>{category.title}</Text>
+                    <View style={styles.emojiGrid}>
+                      {category.items.map((emoji) => (
+                        <Pressable
+                          key={emoji}
+                          style={[
+                            styles.emojiOption,
+                            profile.emoji === emoji && styles.emojiOptionActive,
+                          ]}
+                          onPress={() => {
+                            updateProfile({ emoji });
+                            setIsEmojiPickerOpen(false);
+                          }}
+                          accessibilityRole="button">
+                          <Text style={styles.emojiOptionText}>{emoji}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            </SafeAreaView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -109,11 +277,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Palette.textPrimary,
   },
-  loginLink: {
-    fontSize: 13,
-    color: Palette.accent,
-    fontWeight: '600',
-  },
   profileCard: {
     flexDirection: 'row',
     backgroundColor: Palette.surface,
@@ -132,12 +295,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
+    position: 'relative',
   },
   avatarEmoji: {
-    fontSize: 14,
+    fontSize: 20,
     fontWeight: '700',
     color: Palette.textSecondary,
     letterSpacing: 1,
+  },
+  avatarEditButton: {
+    position: 'absolute',
+    right: -4,
+    bottom: -4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Palette.surface,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarEditIcon: {
+    fontSize: 12,
+    color: Palette.textSecondary,
   },
   profileInfo: {
     flex: 1,
@@ -197,20 +378,98 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: Palette.textTertiary,
   },
-  memoCard: {
+  logoutButton: {
+    height: 48,
+    borderRadius: 14,
     backgroundColor: Palette.surface,
-    borderRadius: 16,
-    padding: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Palette.border,
+    borderColor: '#D65C5C',
   },
-  memoTitle: {
+  logoutButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: Palette.textPrimary,
-    marginBottom: 8,
+    color: '#D65C5C',
   },
-  memoBody: {
-    ...Typography.body,
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    justifyContent: 'flex-end',
+  },
+  emojiSheet: {
+    backgroundColor: Palette.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: 'hidden',
+    maxHeight: '90%',
+  },
+  emojiSheetContent: {
+    backgroundColor: Palette.surface,
+  },
+  emojiHeader: {
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.border,
+    backgroundColor: Palette.surface,
+  },
+  emojiTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '700',
+    color: Palette.textPrimary,
+  },
+  emojiBackButton: {
+    minWidth: 48,
+    height: 36,
+    justifyContent: 'center',
+  },
+  emojiBack: {
+    fontSize: 12,
+    color: Palette.textSecondary,
+  },
+  emojiHeaderSpacer: {
+    minWidth: 48,
+    height: 36,
+  },
+  emojiScrollContent: {
+    padding: 18,
+    paddingBottom: 52,
+  },
+  emojiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'center',
+  },
+  emojiSection: {
+    marginBottom: 16,
+  },
+  emojiSectionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Palette.textSecondary,
+    marginBottom: 10,
+  },
+  emojiOption: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Palette.background,
+  },
+  emojiOptionActive: {
+    borderColor: Palette.accent,
+    backgroundColor: Palette.accentSoft,
+  },
+  emojiOptionText: {
+    fontSize: 24,
   },
 });

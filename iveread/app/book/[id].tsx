@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { Palette, Shadows, Typography } from '@/constants/ui';
+import { useProfile } from '@/contexts/profile-context';
 
 const bookDetails = {
   '1984': {
@@ -109,6 +110,7 @@ const gallerySeed = [
 
 export default function BookDetailScreen() {
   const router = useRouter();
+  const { profile } = useProfile();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const defaultId: BookId = '1984';
   const bookId = (id && id in bookDetails ? (id as BookId) : defaultId);
@@ -121,6 +123,7 @@ export default function BookDetailScreen() {
   const [commentText, setCommentText] = useState('');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const { width } = useWindowDimensions();
+  const myEmoji = profile.emoji || (profile.nickname ? profile.nickname.slice(0, 1) : '😊');
 
   const gallery = useMemo(() => gallerySeed, []);
   const galleryCardSize = Math.floor((width - 22 * 2 - 14) / 2);
@@ -191,7 +194,7 @@ export default function BookDetailScreen() {
             <View style={styles.memberRow}>
               <View style={styles.memberAvatarStack}>
                 <View style={styles.memberAvatar}>
-                  <Text style={styles.memberInitial}>😊</Text>
+                  <Text style={styles.memberInitial}>{myEmoji}</Text>
                 </View>
                 <View style={styles.memberAvatar}>
                   <Text style={styles.memberInitial}>🧑‍🎓</Text>
@@ -274,7 +277,9 @@ export default function BookDetailScreen() {
                 <Text style={styles.sentenceText}>{item.text}</Text>
                 <View style={styles.sentenceMeta}>
                   <View style={styles.sentenceAvatar}>
-                    <Text style={styles.sentenceAvatarText}>{item.name.slice(0, 1)}</Text>
+                    <Text style={styles.sentenceAvatarText}>
+                      {item.name === '나' ? myEmoji : item.name.slice(0, 1)}
+                    </Text>
                   </View>
                   <Text style={styles.sentenceName}>{item.name}</Text>
                 </View>
@@ -292,7 +297,9 @@ export default function BookDetailScreen() {
               commentList.map((comment, index) => (
                 <View key={comment.id} style={styles.commentRow}>
                   <View style={styles.commentAvatar}>
-                    <Text style={styles.commentAvatarText}>{comment.name.slice(0, 1)}</Text>
+                    <Text style={styles.commentAvatarText}>
+                      {comment.name === '나' ? myEmoji : comment.name.slice(0, 1)}
+                    </Text>
                   </View>
                   <View style={styles.commentBody}>
                     <View style={styles.commentHeader}>

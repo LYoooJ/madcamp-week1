@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 
 import { Palette, Shadows, Typography } from '@/constants/ui';
 
@@ -11,6 +11,7 @@ export default function SignupScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.container}>
         <Text style={styles.eyebrow}>회원가입</Text>
         <Text style={styles.title}>함께 읽는 시간을 시작해요</Text>
