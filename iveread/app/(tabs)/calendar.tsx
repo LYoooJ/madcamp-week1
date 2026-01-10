@@ -20,11 +20,12 @@ type Member = { id: MemberId; name: string; emoji: string };
 
 export default function CalendarScreen() {
   const router = useRouter();
-  const { records } = useCalendarRecords();
+  const { recordsByOwner, addReaction } = useCalendarRecords();
   const { profile } = useProfile();
   const [selectedMemberId, setSelectedMemberId] = useState<MemberId>('me');
   const [currentMonth, setCurrentMonth] = useState(new Date(2026, 0, 1));
   const [selectedDay, setSelectedDay] = useState<number | null>(3);
+  const [reactionFriendIndex, setReactionFriendIndex] = useState(0);
   const members = useMemo<Member[]>(
     () => [
       {
@@ -36,6 +37,8 @@ export default function CalendarScreen() {
     ],
     [profile.emoji, profile.nickname]
   );
+  const reactionFriends = useMemo(() => baseMembers, []);
+  const reactionOptions = useMemo(() => ['👏', '😍', '🔥', '✨', '👍', '🥳'], []);
 
   const year = currentMonth.getFullYear();
   const monthIndex = currentMonth.getMonth();
@@ -56,7 +59,8 @@ export default function CalendarScreen() {
   const selectedDateKey = selectedDay
     ? `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`
     : null;
-  const selectedEntry = selectedDateKey ? records[selectedDateKey] : null;
+  const recordsForMember = recordsByOwner[selectedMemberId] ?? {};
+  const selectedEntry = selectedDateKey ? recordsForMember[selectedDateKey] : null;
   const monthLabel = `${year}년 ${monthIndex + 1}월`;
 
   const moveMonth = (direction: 'prev' | 'next') => {
@@ -67,29 +71,45 @@ export default function CalendarScreen() {
 
   const readingCount = useMemo(() => {
     const monthPrefix = `${year}-${String(monthIndex + 1).padStart(2, '0')}-`;
-    return Object.keys(records).filter((key) => key.startsWith(monthPrefix)).length;
-  }, [records, year, monthIndex]);
+    return Object.keys(recordsForMember).filter((key) => key.startsWith(monthPrefix)).length;
+  }, [recordsForMember, year, monthIndex]);
+
+  const uniqueBookCount = useMemo(() => {
+    const monthPrefix = `${year}-${String(monthIndex + 1).padStart(2, '0')}-`;
+    const titles = new Set(
+      Object.entries(recordsForMember)
+        .filter(([key]) => key.startsWith(monthPrefix))
+        .map(([, record]) => record.title)
+        .filter(Boolean)
+    );
+    return titles.size;
+  }, [recordsForMember, year, monthIndex]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>읽기 캘린더</Text>
-          <Pressable
-            style={styles.addButton}
-            onPress={() => {
-              if (!selectedDay) {
-                Alert.alert('안내', '기록할 날짜를 먼저 선택해 주세요.');
-                return;
-              }
-              const dateKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(
-                selectedDay
-              ).padStart(2, '0')}`;
-              router.push({ pathname: '/add-record', params: { date: dateKey } });
-            }}
-            accessibilityRole="button">
-            <Text style={styles.addButtonText}>＋</Text>
-          </Pressable>
+          {selectedMemberId === 'me' && (
+            <Pressable
+              style={styles.addButton}
+              onPress={() => {
+                if (!selectedDay) {
+                  Alert.alert('안내', '기록할 날짜를 먼저 선택해 주세요.');
+                  return;
+                }
+                const dateKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(
+                  selectedDay
+                ).padStart(2, '0')}`;
+                router.push({
+                  pathname: '/add-record',
+                  params: { date: dateKey, ownerId: selectedMemberId },
+                });
+              }}
+              accessibilityRole="button">
+              <Text style={styles.addButtonText}>＋</Text>
+            </Pressable>
+          )}
         </View>
 
         <ScrollView
@@ -154,7 +174,7 @@ export default function CalendarScreen() {
             const dateKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(
               cell.day
             ).padStart(2, '0')}`;
-            const entry = records[dateKey];
+            const entry = recordsForMember[dateKey];
             const isSelected = cell.day === selectedDay;
             const isToday = todayDate === cell.day;
             return (
@@ -205,6 +225,47 @@ export default function CalendarScreen() {
             <View style={styles.detailContent}>
               <Text style={styles.detailBook}>{selectedEntry.title}</Text>
               <Text style={styles.detailNote}>{selectedEntry.note}</Text>
+              <View style={styles.reactionSection}>
+                <Text style={styles.reactionTitle}>친구 반응</Text>
+                {(selectedEntry.reactions ?? []).length > 0 ? (
+                  <View style={styles.reactionList}>
+                    {(selectedEntry.reactions ?? []).map((reaction) => (
+                      <View key={reaction.id} style={styles.reactionChip}>
+                        <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
+                        <Text style={styles.reactionName}>{reaction.name}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={styles.reactionEmpty}>아직 반응이 없어요.</Text>
+                )}
+                <View style={styles.reactionButtons}>
+                  {reactionOptions.map((emoji) => (
+                    <Pressable
+                      key={emoji}
+                      onPress={() => {
+                        if (!selectedDateKey) return;
+                        if (selectedMemberId === 'me') {
+                          addReaction(selectedMemberId, selectedDateKey, {
+                            id: `${selectedDateKey}-${Date.now()}`,
+                            emoji,
+                            name: profile.nickname || '나',
+                          });
+                        } else {
+                          addReaction(selectedMemberId, selectedDateKey, {
+                            id: `${selectedDateKey}-${Date.now()}`,
+                            emoji,
+                            name: profile.nickname || '나',
+                          });
+                        }
+                      }}
+                      style={styles.reactionButton}
+                      accessibilityRole="button">
+                      <Text style={styles.reactionButtonText}>{emoji}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
             </View>
           ) : (
             <Text style={styles.detailEmpty}>선택한 날짜에 기록이 없어요.</Text>
@@ -221,7 +282,7 @@ export default function CalendarScreen() {
               </View>
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryNumber}>
-                  {Math.max(1, Math.round(readingCount / 3))}
+                  {uniqueBookCount}
                 </Text>
                 <Text style={styles.summaryLabel}>참여한 책</Text>
               </View>
@@ -361,7 +422,7 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   dayHeader: {
-    height: 26,
+    height: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -369,7 +430,8 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 2,
   },
   dayCellSelected: {
     backgroundColor: Palette.accentSoft,
@@ -402,8 +464,8 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   dayCover: {
-    width: 34,
-    height: 40,
+    width: 26,
+    height: 26,
     borderRadius: 6,
     backgroundColor: Palette.surface,
   },
@@ -440,6 +502,64 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 12,
     color: Palette.textSecondary,
+  },
+  reactionSection: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Palette.border,
+  },
+  reactionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Palette.textSecondary,
+    marginBottom: 8,
+  },
+  reactionList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  reactionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    backgroundColor: Palette.background,
+    borderWidth: 1,
+    borderColor: Palette.border,
+  },
+  reactionEmoji: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  reactionName: {
+    fontSize: 11,
+    color: Palette.textSecondary,
+    fontWeight: '600',
+  },
+  reactionEmpty: {
+    fontSize: 11,
+    color: Palette.textTertiary,
+    marginBottom: 10,
+  },
+  reactionButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  reactionButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Palette.accentSoft,
+  },
+  reactionButtonText: {
+    fontSize: 16,
   },
   detailEmpty: {
     marginTop: 8,

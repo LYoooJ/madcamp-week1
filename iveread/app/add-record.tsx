@@ -25,7 +25,7 @@ const bookOptions = [
 
 export default function AddRecordScreen() {
   const router = useRouter();
-  const { date } = useLocalSearchParams<{ date?: string }>();
+  const { date, ownerId } = useLocalSearchParams<{ date?: string; ownerId?: string }>();
   const { addRecord } = useCalendarRecords();
   const initialDate = useMemo(() => {
     if (!date) return null;
@@ -74,11 +74,12 @@ export default function AddRecordScreen() {
       Alert.alert('안내', '날짜를 선택해 주세요.');
       return;
     }
-    addRecord({
+    addRecord(ownerId ?? 'me', {
       date: selectedDateKeyFromPicker,
       title: selectedBook ? selectedBook.title : '',
       note: note.trim(),
       cover: selectedBook ? selectedBook.cover : bookOptions[0].cover,
+      reactions: [],
     });
     router.back();
   };
